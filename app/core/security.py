@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from typing import Union, Optional
-from jwt import JWTError, jwt
+import jwt
 from passlib.context import CryptContext
 from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -51,7 +51,7 @@ def verify_token(token: str) -> str:
                 headers={"WWW-Authenticate": "Bearer"},
             )
         return username
-    except JWTError:
+    except jwt.PyJWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
