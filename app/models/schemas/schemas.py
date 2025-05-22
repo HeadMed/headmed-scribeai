@@ -2,7 +2,6 @@ from pydantic import BaseModel, ConfigDict
 from typing import Dict, Optional, List
 from datetime import date, datetime
 
-# Authentication schemas
 class UserLogin(BaseModel):
     username: str
     password: str
@@ -22,7 +21,6 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
-# Patient schemas
 class PatientCreate(BaseModel):
     nome: str
     cpf: str
@@ -45,7 +43,6 @@ class PatientResponse(BaseModel):
 class PatientWithRecords(PatientResponse):
     prontuarios: List["MedicalRecordResponse"] = []
 
-# Medical Record schemas
 class MedicalRecordCreate(BaseModel):
     patient_id: int
     queixa_principal: Optional[str] = None
@@ -84,7 +81,6 @@ class MedicalRecordResponse(BaseModel):
     original_transcription: Optional[str] = None
     created_at: datetime
 
-# Transcription schemas (updated)
 class TranscriptionResponse(BaseModel):
     original_text: str
     structured: Dict[str, str]
