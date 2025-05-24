@@ -28,32 +28,36 @@ async def handle_transcription_with_patient(
     file: UploadFile, 
     patient_id: int
 ) -> TranscriptionResponse:
-    return TranscriptionResponse(
-        original_text="",
-        structured={},
-    )
-    """
+    
     aiworkflow = AIWorkflow()
-    response_json, response_text = aiworkflow.init_aiflow_completion(file)
+    response = await aiworkflow.init_aiflow_completion(file)
+    
+    if not response:
+        return TranscriptionResponse(
+            original_text="",
+            structured={},
+        )
 
+    response_text, response_json = response
+    print("\n\n\n response json: ", response_json)
+    print("\n\n\n response text: ",response_text)
     record_data = MedicalRecordCreate(
         patient_id=patient_id,
-        queixa_principal=structured.get("queixa_principal"),
-        historia_doenca_atual=structured.get("historia_doenca_atual"),
-        antecedentes=structured.get("antecedentes"),
-        exame_fisico=structured.get("exame_fisico"),
-        hipotese_diagnostica=structured.get("hipotese_diagnostica"),
-        conduta=structured.get("conduta"),
-        prescricao=structured.get("prescricao"),
-        encaminhamentos=structured.get("encaminhamentos"),
-        original_transcription=text
+        queixa_principal=response_json.get("queixa_principal"),
+        historia_doenca_atual=response_json.get("historia_doenca_atual"),
+        antecedentes=response_json.get("antecedentes"),
+        exame_fisico=response_json.get("exame_fisico"),
+        hipotese_diagnostica=response_json.get("hipotese_diagnostica"),
+        conduta=response_json.get("conduta"),
+        prescricao=response_json.get("prescricao"),
+        encaminhamentos=response_json.get("encaminhamentos"),
+        original_transcription=response_text
     )
-    
+    print("\n\n\nrecord data:", record_data)
     medical_record = await create_medical_record(session, record_data)
     
     return TranscriptionResponse(
-        original_text=text,
-        structured=structured,
+        original_text=response_text,
+        structured=response_json,
         medical_record_id=medical_record.id
     )
-    """

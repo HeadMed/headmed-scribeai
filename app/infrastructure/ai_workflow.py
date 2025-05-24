@@ -29,17 +29,23 @@ class AIWorkflow():
 
             return json_text, transcription_text
 
-    async def init_aiflow_completion(self, transcription_text):
+    async def init_aiflow_completion(self, file):
         if self.provider == AIProvider.GROQ:
             groq_infra = GroqAIInfratrastructure()
-            json_text = await groq_infra.extract_json_from_text(transcription_text)
 
-            return json_text
+            transcription_text = await groq_infra.extract_text_from_audio(file)
+
+            json_text = await groq_infra.extract_json_from_text(transcription_text)
+            
+            return transcription_text, json_text
             
         elif self.provider == AIProvider.OPENROUTER:
             openrouter_infra = OpenRouterAIInfrastructure()
-
+            groq_infra = GroqAIInfratrastructure()
+            
+            # Primeiro obtém o texto transcrito
+            transcription_text = await groq_infra.extract_text_from_audio(file)
+            # Depois obtém o JSON estruturado
             json_text = await openrouter_infra.extract_json_from_text(transcription_text)
 
-            return json_text
-
+            return transcription_text, json_text

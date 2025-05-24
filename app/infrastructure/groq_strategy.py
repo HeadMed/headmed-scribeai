@@ -62,7 +62,7 @@ class GroqAIInfratrastructure(StrategyAIInfrastructure):
         if not self.client:
             raise ValueError('Groq client is not available')
 
-        response = self.invoke_model_completion(PROMPT_MEDICAL.format(transcription_text=transcription_text))
+        response = await self.invoke_model_completion(PROMPT_MEDICAL.format(transcription_text=transcription_text))
         json_response = extract_json_from_text(response)
 
         return json_response
@@ -73,4 +73,3 @@ class GroqAIInfratrastructure(StrategyAIInfrastructure):
         res_text = str(res.text)
         
         return res_text
-    
