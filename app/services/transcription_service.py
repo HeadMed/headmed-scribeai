@@ -1,16 +1,26 @@
 from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.services.whisper import transcribe_audio
-from app.services.llm import extract_structured_info
+from app.infrastructure.ai_workflow import AIWorkflow
 from app.services.record_service import create_medical_record
 from app.models.schemas import TranscriptionResponse, MedicalRecordCreate
 
+
 async def handle_transcription_flow(file: UploadFile) -> TranscriptionResponse:
-    text = await transcribe_audio(file)
-    structured = extract_structured_info(text)
+        
+    aiworkflow = AIWorkflow()
+    response = await aiworkflow.init_aiflow_completion(file)
+    
+    if not response:
+        return TranscriptionResponse(
+            original_text="",
+            structured={},
+        )
+    
+    response_text, response_json = response
+
     return TranscriptionResponse(
-        original_text=text,
-        structured=structured
+        original_text=response_text,
+        structured=response_json,
     )
 
 async def handle_transcription_with_patient(
@@ -18,8 +28,13 @@ async def handle_transcription_with_patient(
     file: UploadFile, 
     patient_id: int
 ) -> TranscriptionResponse:
-    text = await transcribe_audio(file)
-    structured = extract_structured_info(text)
+    return TranscriptionResponse(
+        original_text="",
+        structured={},
+    )
+    """
+    aiworkflow = AIWorkflow()
+    response_json, response_text = aiworkflow.init_aiflow_completion(file)
 
     record_data = MedicalRecordCreate(
         patient_id=patient_id,
@@ -41,3 +56,4 @@ async def handle_transcription_with_patient(
         structured=structured,
         medical_record_id=medical_record.id
     )
+    """
