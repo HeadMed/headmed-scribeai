@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -10,6 +11,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     logger.info("Starting application...")
     try:
+        from app.database.models import User, Patient, MedicalRecord
         from app.database.db import create_tables
         await create_tables()
         logger.info("Database tables created successfully")

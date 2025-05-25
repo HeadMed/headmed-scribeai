@@ -13,7 +13,7 @@ async def authenticate_user(session: AsyncSession, username: str, password: str)
     if not user or not verify_password(password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail="Username ou senha incorretos",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
@@ -30,18 +30,28 @@ async def login_user(session: AsyncSession, user_data: UserLogin) -> Token:
     return Token(access_token=access_token, token_type="bearer")
 
 async def create_user(session: AsyncSession, user_data: UserCreate) -> UserResponse:
-    result = await session.execute(select(User).filter(User.username == user_data.username))
-    existing_user = result.scalar_one_or_none()
+    username_result = await session.execute(select(User).filter(User.username == user_data.username))
+    existing_username = username_result.scalar_one_or_none()
     
-    if existing_user:
+    if existing_username:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already registered"
+            detail="Username já está cadastrado"
+        )
+    
+    email_result = await session.execute(select(User).filter(User.email == user_data.email))
+    existing_email = email_result.scalar_one_or_none()
+    
+    if existing_email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email já está cadastrado"
         )
     
     hashed_password = get_password_hash(user_data.password)
     db_user = User(
         username=user_data.username,
+        email=user_data.email,
         hashed_password=hashed_password
     )
     
@@ -50,3 +60,15 @@ async def create_user(session: AsyncSession, user_data: UserCreate) -> UserRespo
     await session.refresh(db_user)
     
     return UserResponse.model_validate(db_user)
+
+async def get_user_by_email(session: AsyncSession, email: str) -> User:
+    result = await session.execute(select(User).filter(User.email == email))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuário não encontrado"
+        )
+    
+    return user

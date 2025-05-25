@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, EmailStr
 from typing import Dict, Optional, List
 from datetime import date, datetime
 
@@ -8,6 +8,7 @@ class UserLogin(BaseModel):
 
 class UserCreate(BaseModel):
     username: str
+    email: EmailStr
     password: str
 
 class UserResponse(BaseModel):
@@ -15,6 +16,7 @@ class UserResponse(BaseModel):
     
     id: int
     username: str
+    email: str
     created_at: datetime
 
 class Token(BaseModel):
@@ -24,11 +26,13 @@ class Token(BaseModel):
 class PatientCreate(BaseModel):
     nome: str
     cpf: str
+    email: Optional[EmailStr] = None
     data_nascimento: date
 
 class PatientUpdate(BaseModel):
     nome: Optional[str] = None
     cpf: Optional[str] = None
+    email: Optional[EmailStr] = None
     data_nascimento: Optional[date] = None
 
 class PatientResponse(BaseModel):
@@ -37,7 +41,9 @@ class PatientResponse(BaseModel):
     id: int
     nome: str
     cpf: str
+    email: Optional[str] = None
     data_nascimento: date
+    doctor_id: int 
     created_at: datetime
 
 class PatientWithRecords(PatientResponse):

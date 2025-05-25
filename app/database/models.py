@@ -8,9 +8,12 @@ class User(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, index=True, nullable=False)
+    email = Column(String(255), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    patients = relationship("Patient", back_populates="doctor", cascade="all, delete-orphan")
 
 class Patient(Base):
     __tablename__ = "patients"
@@ -18,11 +21,13 @@ class Patient(Base):
     id = Column(Integer, primary_key=True, index=True)
     nome = Column(String(255), nullable=False)
     cpf = Column(String(11), unique=True, index=True, nullable=False)
+    email = Column(String(255), nullable=True)
     data_nascimento = Column(Date, nullable=False)
+    doctor_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
-    # Relationship with medical records
+    doctor = relationship("User", back_populates="patients")
     prontuarios = relationship("MedicalRecord", back_populates="patient", cascade="all, delete-orphan")
 
 class MedicalRecord(Base):
