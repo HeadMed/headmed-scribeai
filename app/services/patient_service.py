@@ -5,15 +5,19 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from app.database.models import Patient, User
 from app.models.schemas import PatientCreate, PatientUpdate, PatientResponse, PatientWithRecords
+from app.core.security import hash_cpf, format_cpf_for_display
 
 async def create_patient(
     session: AsyncSession, 
     patient_data: PatientCreate, 
     doctor: User 
 ) -> PatientResponse:
+    
+    hashed_cpf = hash_cpf(patient_data.cpf, doctor.id)
+    
     result = await session.execute(
         select(Patient).filter(
-            Patient.cpf == patient_data.cpf,
+            Patient.cpf == hashed_cpf,
             Patient.doctor_id == doctor.id
         )
     )
@@ -25,18 +29,10 @@ async def create_patient(
             detail="Você já possui um paciente cadastrado com este CPF"
         )
     
-    global_cpf_check = await session.execute(
-        select(Patient).filter(Patient.cpf == patient_data.cpf)
-    )
-    if global_cpf_check.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Este CPF já está cadastrado no sistema por outro médico"
-        )
-    
     db_patient = Patient(
         nome=patient_data.nome,
-        cpf=patient_data.cpf,
+        cpf=hashed_cpf,
+        cpf_display="***.***.***-**",
         email=patient_data.email,
         data_nascimento=patient_data.data_nascimento,
         doctor_id=doctor.id
@@ -92,15 +88,17 @@ async def get_patient_by_id(
 
 async def get_patient_by_cpf(
     session: AsyncSession, 
-    cpf: str, 
+    cpf_search: str, 
     doctor: User
-) -> PatientWithRecords:
+) -> Optional[PatientWithRecords]:
+    
+    hashed_cpf = hash_cpf(cpf_search, doctor.id)
     
     result = await session.execute(
         select(Patient)
         .options(selectinload(Patient.prontuarios))
         .filter(
-            Patient.cpf == cpf,
+            Patient.cpf == hashed_cpf,
             Patient.doctor_id == doctor.id
         )
     )
@@ -109,7 +107,7 @@ async def get_patient_by_cpf(
     if not patient:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Paciente não encontrado ou não pertence a você"
+            detail="Paciente não encontrado"
         )
     
     return PatientWithRecords.model_validate(patient)

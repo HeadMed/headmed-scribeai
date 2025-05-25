@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from typing import Dict, Optional, List
 from datetime import date, datetime
 
@@ -25,7 +25,7 @@ class Token(BaseModel):
 
 class PatientCreate(BaseModel):
     nome: str
-    cpf: str
+    cpf: str = Field(..., description="CPF em texto plano (será hasheado)")
     email: Optional[EmailStr] = None
     data_nascimento: date
 
@@ -40,10 +40,11 @@ class PatientResponse(BaseModel):
     
     id: int
     nome: str
-    cpf: str
+    cpf: str = Field(..., description="CPF hasheado/mascarado")
+    cpf_display: Optional[str] = "***.***.***-**" 
     email: Optional[str] = None
     data_nascimento: date
-    doctor_id: int 
+    doctor_id: int
     created_at: datetime
 
 class PatientWithRecords(PatientResponse):

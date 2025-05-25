@@ -9,6 +9,8 @@ from sqlalchemy import select
 from app.database.db import get_async_session
 from app.database.models import User
 import os
+import hashlib
+import hmac
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -76,3 +78,24 @@ async def get_current_user(
         )
     
     return user
+
+def hash_cpf(cpf: str, doctor_id: int) -> str:
+    clean_cpf = ''.join(filter(str.isdigit, cpf))
+    
+    salt = f"{SECRET_KEY}:{doctor_id}:cpf_salt"
+    
+    hashed = hmac.new(
+        salt.encode('utf-8'), 
+        clean_cpf.encode('utf-8'), 
+        hashlib.sha256
+    ).hexdigest()
+    
+    return f"cpf_hash_{hashed[:32]}"
+
+def verify_cpf_hash(cpf: str, hashed_cpf: str, doctor_id: int) -> bool:
+    return hash_cpf(cpf, doctor_id) == hashed_cpf
+
+def format_cpf_for_display(hashed_cpf: str) -> str:
+    if hashed_cpf.startswith("cpf_hash_"):
+        return "***.***.***-**"
+    return hashed_cpf

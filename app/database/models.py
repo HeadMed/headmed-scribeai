@@ -20,7 +20,8 @@ class Patient(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     nome = Column(String(255), nullable=False)
-    cpf = Column(String(11), unique=True, index=True, nullable=False)
+    cpf = Column(String(255), index=True, nullable=False)
+    cpf_display = Column(String(15), nullable=True)
     email = Column(String(255), nullable=True)
     data_nascimento = Column(Date, nullable=False)
     doctor_id = Column(Integer, ForeignKey("users.id"), nullable=False)
