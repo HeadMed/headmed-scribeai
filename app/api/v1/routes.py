@@ -6,12 +6,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.db import get_async_session
 from app.database.models import User
 from app.core.security import get_current_user
-from app.services.transcription_service import handle_transcription_flow, handle_transcription_with_patient
+from app.services.transcription_service import (
+    handle_transcription_flow, handle_transcription_with_patient,
+    handle_transcription_flow_async, handle_transcription_with_patient_async
+)
+from app.services.task_service import get_task_status
 from app.services.auth_service import login_user, create_user
 from app.services.patient_service import (
     create_patient, get_patients, get_patient_by_id, 
-    get_patient_by_cpf, update_patient, delete_patient,
-    verify_patient_ownership
+    get_patient_by_cpf, update_patient, delete_patient
 )
 from app.services.record_service import (
     create_medical_record, get_patient_records, get_medical_record,
@@ -20,7 +23,8 @@ from app.services.record_service import (
 from app.models.schemas import (
     TranscriptionResponse, UserLogin, UserCreate, UserResponse, Token,
     PatientCreate, PatientUpdate, PatientResponse, PatientWithRecords,
-    MedicalRecordCreate, MedicalRecordUpdate, MedicalRecordResponse
+    MedicalRecordCreate, MedicalRecordUpdate, MedicalRecordResponse,
+    TranscriptionTaskResponse, TaskResponse
 )
 
 router = APIRouter()
@@ -29,6 +33,7 @@ router = APIRouter()
 async def health_check():
     return {"status": http.HTTPStatus.OK, "msg": "Health Checked!"}
 
+# Authentication routes
 @router.post("/auth/login", response_model=Token)
 async def login(
     user_data: UserLogin,
@@ -49,12 +54,23 @@ async def get_current_user_info(
 ):
     return UserResponse.model_validate(current_user)
 
+# Transcription routes (protected)
 @router.post("/transcribe", response_model=TranscriptionResponse)
 async def transcribe(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user)
 ):
+    """Transcrição síncrona (processamento imediato)"""
     return await handle_transcription_flow(file)
+
+@router.post("/transcribe/async", response_model=TranscriptionTaskResponse)
+async def transcribe_async(
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Transcrição assíncrona (processamento em background)"""
+    return await handle_transcription_flow_async(session, file)
 
 @router.post("/transcribe/patient/{patient_id}", response_model=TranscriptionResponse)
 async def transcribe_for_patient(
@@ -63,10 +79,29 @@ async def transcribe_for_patient(
     session: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
-    await verify_patient_ownership(session, patient_id, current_user)
-    
+    """Transcrição síncrona para paciente específico"""
     return await handle_transcription_with_patient(session, file, patient_id)
 
+@router.post("/transcribe/patient/{patient_id}/async", response_model=TranscriptionTaskResponse)
+async def transcribe_for_patient_async(
+    patient_id: int,
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Transcrição assíncrona para paciente específico"""
+    return await handle_transcription_with_patient_async(session, file, patient_id)
+
+@router.get("/tasks/{task_id}", response_model=TaskResponse)
+async def get_task_status_endpoint(
+    task_id: str,
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Consulta o status de uma tarefa assíncrona"""
+    return await get_task_status(session, task_id)
+
+# Patient routes (protected)
 @router.post("/patients", response_model=PatientResponse)
 async def create_new_patient(
     patient_data: PatientCreate,
@@ -77,12 +112,12 @@ async def create_new_patient(
 
 @router.get("/patients", response_model=List[PatientResponse])
 async def list_patients(
-    skip: int = Query(0, ge=0, description="Número de registros para pular"),
-    limit: int = Query(100, ge=1, le=1000, description="Número máximo de registros"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
     session: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
-    return await get_patients(session, current_user, skip, limit)
+    return await get_patients(session, current_user, skip, limit) 
 
 @router.get("/patients/{patient_id}", response_model=PatientWithRecords)
 async def get_patient(
@@ -115,17 +150,16 @@ async def delete_existing_patient(
     session: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
-    await delete_patient(session, patient_id, current_user)
-    return {"message": "Paciente deletado com sucesso"}
+    await delete_patient(session, patient_id, current_user) 
+    return {"message": "Patient deleted successfully"}
 
+# Medical Records routes (protected)
 @router.post("/records", response_model=MedicalRecordResponse)
 async def create_new_medical_record(
     record_data: MedicalRecordCreate,
     session: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
-    await verify_patient_ownership(session, record_data.patient_id, current_user)
-    
     return await create_medical_record(session, record_data)
 
 @router.get("/patients/{patient_id}/records", response_model=List[MedicalRecordResponse])
@@ -134,7 +168,6 @@ async def get_patient_medical_records(
     session: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
-    await verify_patient_ownership(session, patient_id, current_user)
     return await get_patient_records(session, patient_id)
 
 @router.get("/records/{record_id}", response_model=MedicalRecordResponse)
@@ -143,10 +176,7 @@ async def get_single_medical_record(
     session: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
-    record = await get_medical_record(session, record_id)
-    await verify_patient_ownership(session, record.patient_id, current_user)
-    
-    return record
+    return await get_medical_record(session, record_id)
 
 @router.put("/records/{record_id}", response_model=MedicalRecordResponse)
 async def update_existing_medical_record(
@@ -155,8 +185,6 @@ async def update_existing_medical_record(
     session: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
-    record = await get_medical_record(session, record_id)
-    await verify_patient_ownership(session, record.patient_id, current_user)
     return await update_medical_record(session, record_id, record_data)
 
 @router.delete("/records/{record_id}")
@@ -165,8 +193,5 @@ async def delete_existing_medical_record(
     session: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
-    
-    record = await get_medical_record(session, record_id)
-    await verify_patient_ownership(session, record.patient_id, current_user)
     await delete_medical_record(session, record_id)
-    return {"message": "Prontuário deletado com sucesso"}
+    return {"message": "Medical record deleted successfully"}

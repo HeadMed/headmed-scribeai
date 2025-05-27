@@ -1,6 +1,7 @@
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from typing import Dict, Optional, List
 from datetime import date, datetime
+from app.database.models import TaskStatus
 
 class UserLogin(BaseModel):
     username: str
@@ -97,3 +98,23 @@ class TranscriptionWithPatient(BaseModel):
     patient_id: int
     original_text: str
     structured: Dict[str, str]
+
+class TranscriptionTaskResponse(BaseModel):
+    task_id: str
+    status: TaskStatus
+    message: str
+    medical_record_id: Optional[int] = None
+
+class TaskResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: int
+    task_id: str
+    task_type: str
+    status: TaskStatus
+    error_message: Optional[str] = None
+    patient_id: Optional[int] = None
+    medical_record_id: Optional[int] = None
+    created_at: datetime
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None

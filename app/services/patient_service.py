@@ -10,15 +10,15 @@ from app.core.security import hash_cpf, format_cpf_for_display
 async def create_patient(
     session: AsyncSession, 
     patient_data: PatientCreate, 
-    doctor: User 
+    current_user: User 
 ) -> PatientResponse:
     
-    hashed_cpf = hash_cpf(patient_data.cpf, doctor.id)
+    hashed_cpf = hash_cpf(patient_data.cpf, current_user.id)
     
     result = await session.execute(
         select(Patient).filter(
             Patient.cpf == hashed_cpf,
-            Patient.doctor_id == doctor.id
+            Patient.doctor_id == current_user.id
         )
     )
     existing_patient = result.scalar_one_or_none()
@@ -35,7 +35,7 @@ async def create_patient(
         cpf_display="***.***.***-**",
         email=patient_data.email,
         data_nascimento=patient_data.data_nascimento,
-        doctor_id=doctor.id
+        doctor_id=current_user.id
     )
     
     session.add(db_patient)
@@ -46,14 +46,14 @@ async def create_patient(
 
 async def get_patients(
     session: AsyncSession, 
-    doctor: User,
+    current_user: User,
     skip: int = 0, 
     limit: int = 100
 ) -> List[PatientResponse]:
     
     result = await session.execute(
         select(Patient)
-        .filter(Patient.doctor_id == doctor.id)
+        .filter(Patient.doctor_id == current_user.id)
         .offset(skip)
         .limit(limit)
         .order_by(Patient.nome)
@@ -65,7 +65,7 @@ async def get_patients(
 async def get_patient_by_id(
     session: AsyncSession, 
     patient_id: int, 
-    doctor: User
+    current_user: User
 ) -> PatientWithRecords:
     
     result = await session.execute(
@@ -73,7 +73,7 @@ async def get_patient_by_id(
         .options(selectinload(Patient.prontuarios))
         .filter(
             Patient.id == patient_id,
-            Patient.doctor_id == doctor.id
+            Patient.doctor_id == current_user.id
         )
     )
     patient = result.scalar_one_or_none()
@@ -89,17 +89,17 @@ async def get_patient_by_id(
 async def get_patient_by_cpf(
     session: AsyncSession, 
     cpf_search: str, 
-    doctor: User
+    current_user: User
 ) -> Optional[PatientWithRecords]:
     
-    hashed_cpf = hash_cpf(cpf_search, doctor.id)
+    hashed_cpf = hash_cpf(cpf_search, current_user.id)
     
     result = await session.execute(
         select(Patient)
         .options(selectinload(Patient.prontuarios))
         .filter(
             Patient.cpf == hashed_cpf,
-            Patient.doctor_id == doctor.id
+            Patient.doctor_id == current_user.id
         )
     )
     patient = result.scalar_one_or_none()
@@ -116,13 +116,13 @@ async def update_patient(
     session: AsyncSession, 
     patient_id: int, 
     patient_data: PatientUpdate, 
-    doctor: User
+    current_user: User
 ) -> PatientResponse:
     
     result = await session.execute(
         select(Patient).filter(
             Patient.id == patient_id,
-            Patient.doctor_id == doctor.id
+            Patient.doctor_id == current_user.id
         )
     )
     patient = result.scalar_one_or_none()
@@ -137,7 +137,7 @@ async def update_patient(
         cpf_result = await session.execute(
             select(Patient).filter(
                 Patient.cpf == patient_data.cpf,
-                Patient.doctor_id == doctor.id,
+                Patient.doctor_id == current_user.id,
                 Patient.id != patient_id
             )
         )
@@ -160,13 +160,13 @@ async def update_patient(
 async def delete_patient(
     session: AsyncSession, 
     patient_id: int, 
-    doctor: User
+    current_user: User
 ) -> bool:
     
     result = await session.execute(
         select(Patient).filter(
             Patient.id == patient_id,
-            Patient.doctor_id == doctor.id
+            Patient.doctor_id == current_user.id
         )
     )
     patient = result.scalar_one_or_none()
@@ -183,13 +183,13 @@ async def delete_patient(
 async def verify_patient_ownership(
     session: AsyncSession, 
     patient_id: int, 
-    doctor: User
+    current_user: User
 ) -> Patient:
     
     result = await session.execute(
         select(Patient).filter(
             Patient.id == patient_id,
-            Patient.doctor_id == doctor.id
+            Patient.doctor_id == current_user.id
         )
     )
     patient = result.scalar_one_or_none()
